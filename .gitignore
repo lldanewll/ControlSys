@@ -1,0 +1,39 @@
+# Python / FastAPI
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.env.*
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# Node.js / Express
+node_modules/
+*.log
+package-lock.json
+npm-debug.log*
+yarn-error.log*
+
+# Docker
+*.pid
+debug.log
+coverage/
+
+# System files
+.DS_Store
+Thumbs.db
+.idea/
+
+# Pytest
+.pytest_cache/
+
+# Misc
+*.bak
+*.swp
+*.swo
+/instance/
