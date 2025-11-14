@@ -6,7 +6,6 @@ from .database import User
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
     yield
     pass
 

@@ -6,7 +6,6 @@ from .database import Order
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
     yield
 
 app = FastAPI(title="Orders Service", version="1.0.0", lifespan=lifespan)
