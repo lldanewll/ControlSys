@@ -38,3 +38,7 @@ async def get_orders_list():
 async def update_order_status(order_id: str):
     # TODO: Реализовать обновление статуса заказа
     return {"message": "Update order status endpoint - to be implemented"}
+
+@app.patch("/v1/orders/{order_id}/cancel", response_model=OrderResponse)
+async def cancel_order(order_id: str, db: Session = Depends(get_db)):
+    return {"message": "Cancel order endpoint - to be implemented"}
