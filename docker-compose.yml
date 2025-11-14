@@ -1,26 +1,53 @@
 services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: control_system
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+      
+
   api_gateway:
-    build: api_gateway
+    build: ./api_gateway
     ports:
       - "8000:8000"
     environment:
-      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/control_system
+      - JWT_SECRET=your-secret-key-here
+      - USERS_SERVICE_URL=http://service_users:8001
+      - ORDERS_SERVICE_URL=http://service_orders:8002
+    depends_on:
+      - postgres
     networks:
       - app-network
 
   service_users:
-    build: service_users
+    build: ./service_users  
     environment:
-      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/control_system
+      - JWT_SECRET=eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo
+    depends_on:
+      - postgres
     networks:
       - app-network
 
   service_orders:
-    build: service_orders
+    build: ./service_orders
     environment:
-      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/control_system
+      - JWT_SECRET=eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo
+      - postgres
     networks:
       - app-network
+
+volumes:
+  postgres_data:
 
 networks:
   app-network:
