@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from .database_config import get_db
 from .database import User
-from .schemas import UserCreate, UserResponse, UserUpdate
+from .schemas import UserCreate, UserResponse, UserUpdate, UserLogin, Token
+from .utils import hash_password, verify_password
+from .auth import create_access_token
+from .dependencies import get_current_user, require_roles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -21,25 +24,64 @@ async def health_check():
 
 @app.post("/v1/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # TODO: Реализовать регистрацию с хешированием пароля
-    return {"message": "Registration endpoint - to be implemented"}
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists"
+        )
+    
+    hashed_password = hash_password(user_data.password)
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        hashed_password=hashed_password,
+        roles=user_data.roles
+    )
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return user
 
-@app.post("/v1/login")
-async def login():
-    # TODO: Реализовать логин с JWT
-    return {"message": "Login endpoint - to be implemented"}
+@app.post("/v1/login", response_model=Token)
+async def login(login_data: UserLogin, db: Session = Depends(get_db)):
+    # Находим пользователя
+    user = db.query(User).filter(User.email == login_data.email).first()
+    if not user or not verify_password(login_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    
+    access_token = create_access_token(data={"sub": str(user.id)})
+    
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.get("/v1/profile", response_model=UserResponse)
-async def get_profile():
-    # TODO: Реализовать получение профиля
-    return {"message": "Profile endpoint - to be implemented"}
+async def get_profile(current_user: User = Depends(get_current_user)):
+    return current_user
 
 @app.put("/v1/profile", response_model=UserResponse)
-async def update_profile():
-    # TODO: Реализовать обновление профиля
-    return {"message": "Update profile endpoint - to be implemented"}
+async def update_profile(
+    update_data: UserUpdate, 
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    update_dict = update_data.dict(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(current_user, field, value)
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return current_user
 
 @app.get("/v1/admin/users", response_model=list[UserResponse])
-async def get_users_list():
-    # TODO: Реализовать список пользователей для админа
-    return {"message": "Admin users list endpoint - to be implemented"}
+async def get_users_list(
+    current_user: User = Depends(require_roles(["admin"])),
+    db: Session = Depends(get_db)
+):
+    users = db.query(User).all()
+    return users

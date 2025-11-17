@@ -19,7 +19,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/control_system
-      - JWT_SECRET=your-secret-key-here
+      - JWT_SECRET=eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo
       - USERS_SERVICE_URL=http://service_users:8001
       - ORDERS_SERVICE_URL=http://service_orders:8002
     depends_on:
