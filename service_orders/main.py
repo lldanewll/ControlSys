@@ -11,7 +11,13 @@ import uuid
 from database_config import get_db, engine
 from database import Order, Base
 from schemas import OrderCreate, OrderResponse, OrderUpdate, OrderListResponse
-from dependencies import get_current_user_id, get_order_with_permission
+from dependencies import (
+    get_current_user_id, 
+    get_order_with_permission, 
+    get_current_user_id_and_roles, 
+    require_manager_or_admin,
+    get_all_orders_access
+)
 from utils import calculate_total_amount, validate_order_status_transition
 
 @asynccontextmanager
@@ -54,20 +60,27 @@ async def create_order(
 
 @app.get("/v1/orders/{order_id}", response_model=OrderResponse)
 async def get_order(
-    order: Order = Depends(get_order_with_permission)
+    order: Order = Depends(get_order_with_permission)  # Менеджеры и админы имеют доступ
 ):
     return order
 
 @app.get("/v1/orders", response_model=OrderListResponse)
 async def get_orders_list(
     current_user_id: uuid.UUID = Depends(get_current_user_id),
+    user_info: dict = Depends(get_current_user_id_and_roles),
     db: Session = Depends(get_db),
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     status: Optional[str] = Query(None)
 ):
-    # Базовый запрос для пользователя
-    query = db.query(Order).filter(Order.user_id == current_user_id)
+    user_roles = user_info["roles"]
+    
+    # Менеджеры и админы видят все заказы
+    if "manager" in user_roles or "admin" in user_roles:
+        query = db.query(Order)
+    # Инженеры видят только свои заказы
+    else:
+        query = db.query(Order).filter(Order.user_id == current_user_id)
     
     # Фильтрация по статусу
     if status:
@@ -91,9 +104,11 @@ async def get_orders_list(
 @app.patch("/v1/orders/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
     status_data: OrderUpdate,
-    order: Order = Depends(get_order_with_permission),
+    order: Order = Depends(get_order_with_permission),  # Менеджеры и админы имеют доступ
+    user_info: dict = Depends(require_manager_or_admin),  # Только менеджеры и админы могут менять статус
     db: Session = Depends(get_db)
 ):
+    """Обновление статуса заказа - только для менеджеров и админов"""
     if not status_data.status:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -117,13 +132,39 @@ async def update_order_status(
 @app.patch("/v1/orders/{order_id}/cancel", response_model=OrderResponse)
 async def cancel_order(
     order: Order = Depends(get_order_with_permission),
+    user_info: dict = Depends(get_current_user_id_and_roles),
     db: Session = Depends(get_db)
 ):
-    # Проверяем можно ли отменить заказ
-    if order.status not in ['created', 'in_progress']:
+    """Отмена заказа - инженер может отменить только свой заказ, менеджер/админ - любой"""
+    user_roles = user_info["roles"]
+    user_id = user_info["user_id"]
+    
+    # Инженер может отменять только СВОИ заказы со статусом created
+    if "engineer" in user_roles and "manager" not in user_roles and "admin" not in user_roles:
+        if order.user_id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only cancel your own orders"
+            )
+        if order.status != 'created':
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Engineers can only cancel orders with 'created' status"
+            )
+    
+    # Менеджер/админ может отменять ЛЮБЫЕ заказы в created или in_progress
+    elif "manager" in user_roles or "admin" in user_roles:
+        if order.status not in ['created', 'in_progress']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot cancel order with status {order.status}"
+            )
+    
+    # Если пользователь не инженер и не менеджер/админ
+    else:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot cancel order with status {order.status}"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied - engineer, manager or admin role required"
         )
     
     # Отменяем заказ
