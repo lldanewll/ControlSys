@@ -5,7 +5,6 @@ from alembic import context
 import os
 import sys
 
-# Добавляем путь к корню проекта
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from database import Base
@@ -13,15 +12,9 @@ from database import Order
 
 config = context.config
 
-# Interpret the config file for Python logging
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
-
 target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
-
     url = os.getenv("DATABASE_URL")
     if not url:
         raise ValueError("DATABASE_URL environment variable is required")
@@ -37,13 +30,12 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise ValueError("DATABASE_URL environment variable is required")
-    
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = database_url
+    configuration = {
+        "sqlalchemy.url": database_url
+    }
     
     connectable = engine_from_config(
         configuration,

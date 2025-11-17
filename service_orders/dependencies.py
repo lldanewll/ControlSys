@@ -1,8 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from .database_config import get_db
-from .database import Order, User
+from database_config import get_db
+from database import Order
 import uuid
 
 security = HTTPBearer()
@@ -11,8 +11,8 @@ async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security)
 ) -> uuid.UUID:
     """Извлекает user_id из JWT токена"""
+    # ⚠️ ВРЕМЕННО: возвращаем фиктивный UUID
     # В реальном проекте здесь был бы вызов сервиса пользователей
-    # Пока используем заглушку - первый пользователь из БД
     return uuid.uuid4()
 
 async def get_order_with_permission(

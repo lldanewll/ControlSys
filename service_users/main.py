@@ -1,12 +1,16 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
 from fastapi import FastAPI, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
-from .database_config import get_db
-from .database import User
-from .schemas import UserCreate, UserResponse, UserUpdate, UserLogin, Token
-from .utils import hash_password, verify_password
-from .auth import create_access_token
-from .dependencies import get_current_user, require_roles
+from database_config import get_db
+from database import User
+from schemas import UserCreate, UserResponse, UserUpdate, UserLogin, Token
+from utils import hash_password, verify_password
+from auth import create_access_token
+from dependencies import get_current_user, require_roles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

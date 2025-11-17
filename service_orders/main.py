@@ -1,14 +1,18 @@
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
 from fastapi import FastAPI, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from contextlib import asynccontextmanager
 from typing import Optional
 import uuid
 
-from .database_config import get_db
-from .database import Order
-from .schemas import OrderCreate, OrderResponse, OrderUpdate, OrderListResponse
-from .dependencies import get_current_user_id, get_order_with_permission
-from .utils import calculate_total_amount, validate_order_status_transition
+from database_config import get_db
+from database import Order
+from schemas import OrderCreate, OrderResponse, OrderUpdate, OrderListResponse
+from dependencies import get_current_user_id, get_order_with_permission
+from utils import calculate_total_amount, validate_order_status_transition
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

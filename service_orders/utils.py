@@ -1,6 +1,6 @@
 from decimal import Decimal
 from typing import List
-from .schemas import OrderItem
+from schemas import OrderItem
 
 def calculate_total_amount(items: List[OrderItem]) -> Decimal:
     """Рассчитывает общую сумму заказа"""
