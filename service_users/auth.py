@@ -2,22 +2,17 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from typing import Optional
 import os
+import logging
 
-SECRET_KEY = os.getenv("JWT_SECRET", "eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo")
+logger = logging.getLogger(__name__)
+
+JWT_SECRET = os.getenv("JWT_SECRET", "eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_DAYS = 3
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     """Создает JWT токен"""
     to_encode = data.copy()
-    
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[dict]:
@@ -28,10 +23,13 @@ def verify_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-def get_token_payload(authorization: str) -> Optional[dict]:
-    """Извлекает payload из заголовка Authorization"""
-    if not authorization or not authorization.startswith("Bearer "):
+def get_token_payload(token: str) -> Optional[dict]:
+    """Получает payload из JWT токена"""
+    try:
+        logger.info(f"Verifying token in Users Service: {token[:50]}...")
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        logger.info(f"Token payload in Users Service: {payload}")
+        return payload
+    except JWTError as e:
+        logger.error(f"JWT verification failed in Users Service: {str(e)}")
         return None
-    
-    token = authorization.replace("Bearer ", "")
-    return verify_token(token)
