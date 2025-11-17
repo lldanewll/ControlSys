@@ -62,7 +62,11 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
     
-    access_token = create_access_token(data={"sub": str(user.id)})
+    # МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ: добавляем роли в токен
+    access_token = create_access_token(data={
+        "sub": str(user.id),
+        "roles": user.roles
+    })
     
     return {"access_token": access_token, "token_type": "bearer"}
 
