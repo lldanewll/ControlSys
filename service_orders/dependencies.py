@@ -28,7 +28,6 @@ async def get_current_user_id_and_roles(
     try:
         user_id = uuid.UUID(user_id_str)
         
-        # Получаем роли из JWT payload
         user_roles = payload.get("roles", ["engineer"])
         
         return {"user_id": user_id, "roles": user_roles}
@@ -65,11 +64,9 @@ async def get_order_with_permission(
     user_id = user_info["user_id"]
     user_roles = user_info["roles"]
     
-    # Менеджеры и админы имеют доступ ко всем заказам
     if "manager" in user_roles or "admin" in user_roles:
         return order
     
-    # Инженеры имеют доступ только к своим заказам
     if order.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

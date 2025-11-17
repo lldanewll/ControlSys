@@ -41,10 +41,8 @@ async def create_order(
     current_user_id: uuid.UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    # Рассчитываем итоговую сумму
     total_amount = calculate_total_amount(order_data.items)
     
-    # Создаем заказ
     order = Order(
         user_id=current_user_id,
         items=[item.dict() for item in order_data.items],
@@ -60,7 +58,7 @@ async def create_order(
 
 @app.get("/v1/orders/{order_id}", response_model=OrderResponse)
 async def get_order(
-    order: Order = Depends(get_order_with_permission)  # Менеджеры и админы имеют доступ
+    order: Order = Depends(get_order_with_permission)
 ):
     return order
 
@@ -75,23 +73,19 @@ async def get_orders_list(
 ):
     user_roles = user_info["roles"]
     
-    # Менеджеры и админы видят все заказы
+
     if "manager" in user_roles or "admin" in user_roles:
         query = db.query(Order)
-    # Инженеры видят только свои заказы
     else:
         query = db.query(Order).filter(Order.user_id == current_user_id)
     
-    # Фильтрация по статусу
     if status:
         query = query.filter(Order.status == status)
     
-    # Пагинация
     total = query.count()
     offset = (page - 1) * limit
     orders = query.offset(offset).limit(limit).all()
     
-    # Расчет общего количества страниц
     pages = (total + limit - 1) // limit
     
     return OrderListResponse(
@@ -104,8 +98,8 @@ async def get_orders_list(
 @app.patch("/v1/orders/{order_id}/status", response_model=OrderResponse)
 async def update_order_status(
     status_data: OrderUpdate,
-    order: Order = Depends(get_order_with_permission),  # Менеджеры и админы имеют доступ
-    user_info: dict = Depends(require_manager_or_admin),  # Только менеджеры и админы могут менять статус
+    order: Order = Depends(get_order_with_permission), 
+    user_info: dict = Depends(require_manager_or_admin), 
     db: Session = Depends(get_db)
 ):
     """Обновление статуса заказа - только для менеджеров и админов"""
@@ -115,14 +109,12 @@ async def update_order_status(
             detail="Status is required"
         )
     
-    # Проверяем допустимость перехода статусов
     if not validate_order_status_transition(order.status, status_data.status):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Cannot change status from {order.status} to {status_data.status}"
         )
     
-    # Обновляем статус
     order.status = status_data.status
     db.commit()
     db.refresh(order)
@@ -139,7 +131,6 @@ async def cancel_order(
     user_roles = user_info["roles"]
     user_id = user_info["user_id"]
     
-    # Инженер может отменять только СВОИ заказы со статусом created
     if "engineer" in user_roles and "manager" not in user_roles and "admin" not in user_roles:
         if order.user_id != user_id:
             raise HTTPException(
@@ -152,7 +143,6 @@ async def cancel_order(
                 detail=f"Engineers can only cancel orders with 'created' status"
             )
     
-    # Менеджер/админ может отменять ЛЮБЫЕ заказы в created или in_progress
     elif "manager" in user_roles or "admin" in user_roles:
         if order.status not in ['created', 'in_progress']:
             raise HTTPException(
@@ -160,14 +150,12 @@ async def cancel_order(
                 detail=f"Cannot cancel order with status {order.status}"
             )
     
-    # Если пользователь не инженер и не менеджер/админ
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied - engineer, manager or admin role required"
         )
     
-    # Отменяем заказ
     order.status = "cancelled"
     db.commit()
     db.refresh(order)

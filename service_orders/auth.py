@@ -1,4 +1,3 @@
-# service_orders/auth.py
 import os
 from jose import JWTError, jwt
 from typing import Optional

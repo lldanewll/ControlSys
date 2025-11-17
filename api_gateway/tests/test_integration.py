@@ -14,7 +14,7 @@ class TestUserWorkflow:
     """Тесты полного workflow пользователя"""
     
     def test_register_and_login(self):
-        # Регистрация нового пользователя
+
         email = f"test_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -26,8 +26,7 @@ class TestUserWorkflow:
         assert response.status_code == 201
         user_id = response.json()["id"]
         assert user_id is not None
-        
-        # Логин с правильными данными
+
         login_data = {
             "email": email,
             "password": "testpass123"
@@ -43,7 +42,7 @@ class TestEngineerWorkflow:
     """Тесты для инженера"""
     
     def test_engineer_full_workflow(self):
-        # Регистрируем и логиним инженера
+
         email = f"engineer_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -57,13 +56,11 @@ class TestEngineerWorkflow:
         login_response = client.post("/v1/login", json=login_data)
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
-        
-        # 1. Получаем профиль
+
         response = client.get("/v1/profile", headers=headers)
         assert response.status_code == 200
         assert response.json()["email"] == email
         
-        # 2. Создаем заказ
         order_data = {
             "items": [
                 {
@@ -85,19 +82,16 @@ class TestEngineerWorkflow:
         assert order["status"] == "created"
         assert order["total_amount"] == 10*150.50 + 2*300.00
         
-        # 3. Получаем заказ по ID
         response = client.get(f"/v1/orders/{order_id}", headers=headers)
         assert response.status_code == 200
         assert response.json()["id"] == order_id
         
-        # 4. Получаем список заказов
         response = client.get("/v1/orders", headers=headers)
         assert response.status_code == 200
         orders_data = response.json()
         assert orders_data["total"] >= 1
         assert len(orders_data["orders"]) >= 1
         
-        # 5. Отменяем заказ (инженер может отменить свой заказ в статусе created)
         response = client.patch(f"/v1/orders/{order_id}/cancel", headers=headers)
         assert response.status_code == 200
         assert response.json()["status"] == "cancelled"
@@ -108,7 +102,6 @@ class TestManagerWorkflow:
     """Тесты для менеджера"""
     
     def test_manager_full_workflow(self):
-        # Регистрируем менеджера
         email = f"manager_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -123,7 +116,6 @@ class TestManagerWorkflow:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # 1. Менеджер может создать заказ
         order_data = {
             "items": [
                 {
@@ -137,16 +129,13 @@ class TestManagerWorkflow:
         assert response.status_code == 201
         order_id = response.json()["id"]
         
-        # 2. Менеджер может изменить статус своего заказа
         status_data = {"status": "in_progress"}
         response = client.patch(f"/v1/orders/{order_id}/status", json=status_data, headers=headers)
         assert response.status_code == 200
         assert response.json()["status"] == "in_progress"
         
-        # 3. Менеджер видит все заказы (не только свои)
         response = client.get("/v1/orders", headers=headers)
         assert response.status_code == 200
-        # Должен быть хотя бы 1 заказ (может быть больше из других тестов)
         assert response.json()["total"] >= 1
         
         return token
@@ -155,7 +144,6 @@ class TestAdminWorkflow:
     """Тесты для администратора"""
     
     def test_admin_full_workflow(self):
-        # Регистрируем админа
         email = f"admin_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -170,14 +158,12 @@ class TestAdminWorkflow:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # 1. Админ может получить список пользователей
         response = client.get("/v1/admin/users", headers=headers)
         assert response.status_code == 200
         users = response.json()
         assert isinstance(users, list)
-        assert len(users) >= 1  # Должен быть хотя бы сам админ
+        assert len(users) >= 1 
         
-        # 2. Админ может создать нового пользователя
         new_user_data = {
             "email": f"newuser_{uuid.uuid4().hex[:8]}@example.com",
             "name": "New User Created by Admin",
@@ -206,7 +192,6 @@ class TestSecurity:
     
     def test_engineer_cannot_access_admin_endpoints(self):
         """Инженер не может получить доступ к админским endpoint"""
-        # Создаем инженера
         email = f"engineer_sec_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -220,12 +205,10 @@ class TestSecurity:
         login_response = client.post("/v1/login", json=login_data)
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
-        
-        # Инженер не может получить список пользователей
+
         response = client.get("/v1/admin/users", headers=headers)
         assert response.status_code == 403
         
-        # Инженер не может создавать пользователей
         new_user_data = {
             "email": "test@example.com",
             "name": "Test",
@@ -237,7 +220,6 @@ class TestSecurity:
     
     def test_engineer_cannot_change_order_status(self):
         """Инженер не может менять статус заказов"""
-        # Создаем инженера и его заказ
         email = f"engineer_status_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -252,14 +234,12 @@ class TestSecurity:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # Создаем заказ
         order_data = {
             "items": [{"product": "test", "quantity": 1, "price": 100.0}]
         }
         response = client.post("/v1/orders", json=order_data, headers=headers)
         order_id = response.json()["id"]
         
-        # Инженер не может изменить статус
         status_data = {"status": "in_progress"}
         response = client.patch(f"/v1/orders/{order_id}/status", json=status_data, headers=headers)
         assert response.status_code == 403
@@ -276,11 +256,9 @@ class TestErrorScenarios:
             "password": "pass123",
             "roles": ["engineer"]
         }
-        # Первая регистрация - успешно
         response = client.post("/v1/register", json=user_data)
         assert response.status_code == 201
         
-        # Вторая регистрация - ошибка
         response = client.post("/v1/register", json=user_data)
         assert response.status_code == 400
         assert "already exists" in response.json()["detail"].lower()
@@ -302,7 +280,6 @@ class TestErrorScenarios:
     
     def test_invalid_order_data(self):
         """Создание заказа с невалидными данными"""
-        # Создаем пользователя для теста
         email = f"invalid_order_{uuid.uuid4().hex[:8]}@example.com"
         user_data = {
             "email": email,
@@ -317,15 +294,14 @@ class TestErrorScenarios:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
         
-        # Невалидные данные - отрицательное количество
         invalid_order = {
             "items": [
                 {
                     "product": "test",
-                    "quantity": -1,  # Отрицательное количество
+                    "quantity": -1,
                     "price": 100.0
                 }
             ]
         }
         response = client.post("/v1/orders", json=invalid_order, headers=headers)
-        assert response.status_code == 422  # Unprocessable Entity
+        assert response.status_code == 422  

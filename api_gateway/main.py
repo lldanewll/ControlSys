@@ -15,25 +15,24 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Настройки
 USERS_SERVICE_URL = os.getenv("USERS_SERVICE_URL", "http://service_users:8001")
 ORDERS_SERVICE_URL = os.getenv("ORDERS_SERVICE_URL", "http://service_orders:8002")
 JWT_SECRET = os.getenv("JWT_SECRET", "eANno-EM-Li4tPzYFOLS-A9khJO-FhKjCZucrVFVyIo")
 
 logger.info(f"JWT_SECRET in Gateway: {JWT_SECRET}")
 
-# Security
+
 security_scheme = HTTPBearer(auto_error=False)
 
-# Pydantic схемы для Gateway
+
 class RegisterRequest(BaseModel):
-    email: EmailStr  # Обычный str вместо EmailStr
+    email: EmailStr  
     name: str
     password: str
     roles: List[str] = ["engineer"]
 
 class LoginRequest(BaseModel):
-    email: EmailStr  # Обычный str вместо EmailStr
+    email: EmailStr  
     password: str
 
 
@@ -54,7 +53,7 @@ class OrderStatusUpdateRequest(BaseModel):
     status: Optional[str] = None
 
 class AdminCreateRequest(BaseModel):
-    email: EmailStr  # Обычный str вместо EmailStr
+    email: EmailStr  
     name: str
     password: str
     roles: List[str]
@@ -69,7 +68,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# JWT утилиты
+
 def verify_jwt_token(token: str) -> Optional[dict]:
     """Проверяет JWT токен"""
     try:
@@ -102,7 +101,6 @@ async def get_current_user(credentials: Optional[HTTPAuthorizationCredentials] =
     logger.info("JWT token validated successfully in Gateway")
     return credentials.credentials
 
-# Проксирование запросов
 async def proxy_request(
     service_url: str,
     path: str,
@@ -113,7 +111,6 @@ async def proxy_request(
     """Проксирует запрос к микросервису"""
     url = f"{service_url}{path}"
     
-    # Подготавливаем заголовки
     request_headers = headers.copy() if headers else {}
     if data and method.upper() in ["POST", "PUT", "PATCH"]:
         request_headers["Content-Type"] = "application/json"
@@ -136,7 +133,6 @@ async def proxy_request(
                     content={"error": "Method not supported"}
                 )
             
-            # Проксируем ответ от сервиса
             return JSONResponse(
                 content=response.json(),
                 status_code=response.status_code
@@ -153,7 +149,6 @@ async def proxy_request(
                 content={"error": f"Internal server error: {str(e)}"}
             )
 
-# Public endpoints (без аутентификации)
 @app.post("/v1/register")
 async def register_user(register_data: RegisterRequest):
     """Регистрация пользователя"""
@@ -180,7 +175,6 @@ async def login_user(login_data: LoginRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-# Protected endpoints (требуют аутентификации)
 @app.get("/v1/profile")
 async def get_user_profile(token: str = Depends(get_current_user)):
     """Получение профиля пользователя"""
@@ -208,7 +202,6 @@ async def get_users_list(token: str = Depends(get_current_user)):
     headers = {"Authorization": f"Bearer {token}"}
     return await proxy_request(USERS_SERVICE_URL, "/v1/admin/users", "GET", headers=headers)
 
-# Админский эндпоинт для создания пользователей с любыми ролями
 @app.post("/v1/admin/users")
 async def create_user_admin(
     user_data: AdminCreateRequest,
@@ -224,7 +217,6 @@ async def create_user_admin(
         headers
     )
 
-# Orders endpoints (требуют аутентификации)
 @app.post("/v1/orders")
 async def create_order(
     order_data: OrderCreateRequest,
@@ -283,7 +275,6 @@ async def cancel_order(order_id: str, token: str = Depends(get_current_user)):
     headers = {"Authorization": f"Bearer {token}"}
     return await proxy_request(ORDERS_SERVICE_URL, f"/v1/orders/{order_id}/cancel", "PATCH", headers=headers)
 
-# Health checks
 @app.get("/health")
 async def health_check():
     """Health check gateway"""
@@ -295,14 +286,12 @@ async def services_health_check():
     services_status = {}
     
     async with httpx.AsyncClient() as client:
-        # Проверяем users service
         try:
             response = await client.get(f"{USERS_SERVICE_URL}/health")
             services_status["users_service"] = response.status_code == 200
         except:
             services_status["users_service"] = False
         
-        # Проверяем orders service
         try:
             response = await client.get(f"{ORDERS_SERVICE_URL}/health")
             services_status["orders_service"] = response.status_code == 200

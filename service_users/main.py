@@ -54,7 +54,6 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 @app.post("/v1/login", response_model=Token)
 async def login(login_data: UserLogin, db: Session = Depends(get_db)):
-    # Находим пользователя
     user = db.query(User).filter(User.email == login_data.email).first()
     if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
@@ -62,7 +61,6 @@ async def login(login_data: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
     
-    # МИНИМАЛЬНОЕ ИЗМЕНЕНИЕ: добавляем роли в токен
     access_token = create_access_token(data={
         "sub": str(user.id),
         "roles": user.roles

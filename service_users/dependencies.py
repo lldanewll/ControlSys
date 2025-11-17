@@ -33,7 +33,6 @@ async def get_current_user(
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)):
     """Зависимость для проверки что пользователь активен"""
-    # Здесь можно добавить проверку на блокировку и т.д.
     return current_user
 
 def require_roles(required_roles: list):
