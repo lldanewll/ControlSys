@@ -7,7 +7,7 @@ from decimal import Decimal
 class OrderItem(BaseModel):
     product: str
     quantity: int
-    price: Decimal
+    price: float
     
     @validator('quantity')
     def quantity_positive(cls, v):
@@ -17,7 +17,6 @@ class OrderItem(BaseModel):
 
 class OrderBase(BaseModel):
     items: List[OrderItem]
-    total_amount: Decimal
 
 class OrderCreate(OrderBase):
     pass
@@ -34,6 +33,8 @@ class OrderUpdate(BaseModel):
 class OrderResponse(OrderBase):
     id: UUID
     user_id: UUID
+    items: List[OrderItem]
+    total_amount: float
     status: str
     created_at: datetime
     updated_at: datetime

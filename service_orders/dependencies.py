@@ -8,12 +8,27 @@ import uuid
 security = HTTPBearer()
 
 async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
 ) -> uuid.UUID:
-    """Извлекает user_id из JWT токена"""
-    # ⚠️ ВРЕМЕННО: возвращаем фиктивный UUID
-    # В реальном проекте здесь был бы вызов сервиса пользователей
-    return uuid.uuid4()
+    """Зависимость для получения user_id из JWT"""
+    payload = get_token_payload(credentials.credentials)
+    
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )
+    
+    user_id_str = payload.get("sub")
+    try:
+        user_id = uuid.UUID(user_id_str)
+        return user_id
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID format",
+        )
 
 async def get_order_with_permission(
     order_id: uuid.UUID,

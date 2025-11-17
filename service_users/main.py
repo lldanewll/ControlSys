@@ -14,6 +14,9 @@ from dependencies import get_current_user, require_roles
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from database_config import engine
+    from database import Base
+    Base.metadata.create_all(bind=engine)
     yield
 
 app = FastAPI(
@@ -89,3 +92,31 @@ async def get_users_list(
 ):
     users = db.query(User).all()
     return users
+
+@app.post("/v1/admin/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+async def create_user_admin(
+    user_data: UserCreate,
+    current_user: User = Depends(require_roles(["admin"])),
+    db: Session = Depends(get_db)
+):
+    """Создание пользователя админом (с любыми ролями)"""
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email already exists"
+        )
+    
+    hashed_password = hash_password(user_data.password)
+    user = User(
+        email=user_data.email,
+        name=user_data.name,
+        hashed_password=hashed_password,
+        roles=user_data.roles
+    )
+    
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    return user

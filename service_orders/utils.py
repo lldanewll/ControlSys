@@ -2,9 +2,9 @@ from decimal import Decimal
 from typing import List
 from schemas import OrderItem
 
-def calculate_total_amount(items: List[OrderItem]) -> Decimal:
+def calculate_total_amount(items: List[OrderItem]) -> float:
     """Рассчитывает общую сумму заказа"""
-    total = Decimal('0')
+    total = 0.0
     for item in items:
         total += item.price * item.quantity
     return total

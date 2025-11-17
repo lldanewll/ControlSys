@@ -8,14 +8,15 @@ from contextlib import asynccontextmanager
 from typing import Optional
 import uuid
 
-from database_config import get_db
-from database import Order
+from database_config import get_db, engine
+from database import Order, Base
 from schemas import OrderCreate, OrderResponse, OrderUpdate, OrderListResponse
 from dependencies import get_current_user_id, get_order_with_permission
 from utils import calculate_total_amount, validate_order_status_transition
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
     yield
 
 app = FastAPI(
